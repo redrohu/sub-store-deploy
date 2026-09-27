@@ -313,6 +313,10 @@
                 "outbound": "💶 PayPal"
             },
             {
+                "domain_keyword": "hsex",
+                "outbound": "🐸 手动选择"
+            },
+            {
                 "rule_set": "geosite-steamcn",
                 "outbound": "🎯 全球直连"
             },
