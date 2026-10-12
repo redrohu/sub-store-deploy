@@ -277,6 +277,7 @@
             },
             {
                 "rule_set": "geosite-google",
+                "domain": ["asxs.top"],
                 "outbound": "🍀 Google"
             },
             {
@@ -310,6 +311,10 @@
             {
                 "rule_set": "geosite-paypal",
                 "outbound": "💶 PayPal"
+            },
+            {
+                "domain_keyword": "hsex",
+                "outbound": "🐸 手动选择"
             },
             {
                 "rule_set": "geosite-steamcn",
