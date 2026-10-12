@@ -29,6 +29,33 @@ INIT_FILE="/etc/init.d/substore"
 LOG_FILE="/var/log/sub-store.log"
 BACKEND_FILE="$INSTALL_DIR/sub-store.bundle.js"
 
+# ---------- CORS 来源 ----------
+# 新版 Sub-Store 会校验浏览器 Origin。默认加入常用本地来源和本机 IP，
+# 也允许通过 SUB_STORE_CORS_ALLOWED_ORIGINS 手动覆盖。
+build_cors_origins() {
+  if [ -n "${SUB_STORE_CORS_ALLOWED_ORIGINS:-}" ]; then
+    printf '%s' "$SUB_STORE_CORS_ALLOWED_ORIGINS"
+    return
+  fi
+
+  ORIGINS="https://sub-store.vercel.app,http://substore.stash,https://substore.stash"
+  ORIGINS="${ORIGINS},http://127.0.0.1:${FRONTEND_PORT},http://localhost:${FRONTEND_PORT}"
+
+  HOSTNAME_VALUE=$(hostname 2>/dev/null || true)
+  if [ -n "$HOSTNAME_VALUE" ]; then
+    ORIGINS="${ORIGINS},http://${HOSTNAME_VALUE}:${FRONTEND_PORT}"
+  fi
+
+  for IP in $(hostname -I 2>/dev/null | tr ' ' '\n' | sed '/^$/d;/^127\./d'); do
+    case "$IP" in
+      *:*) ORIGINS="${ORIGINS},http://[${IP}]:${FRONTEND_PORT}" ;;
+      *)   ORIGINS="${ORIGINS},http://${IP}:${FRONTEND_PORT}" ;;
+    esac
+  done
+
+  printf '%s' "$ORIGINS"
+}
+
 # ---------- 权限检查 ----------
 [ "$(id -u)" -eq 0 ] || err "请以 root 用户运行此脚本"
 
@@ -113,6 +140,7 @@ do_uninstall() {
 # ============================================================
 do_install() {
   IS_UPDATE=0
+  CORS_ALLOWED_ORIGINS="${SUB_STORE_CORS_ALLOWED_ORIGINS:-}"
   if [ -f "$BACKEND_FILE" ]; then
     IS_UPDATE=1
     step "检测到已有安装，执行更新"
@@ -123,6 +151,12 @@ do_install() {
     BACKEND_PATH=$(grep 'SUB_STORE_FRONTEND_BACKEND_PATH=' "$INIT_FILE" 2>/dev/null \
       | sed 's/.*="\(.*\)"/\1/')
     log "保留原有安全路径: $BACKEND_PATH"
+
+    # 更新时优先保留已有 CORS 配置，兼容此前手动设置的白名单。
+    if [ -z "$CORS_ALLOWED_ORIGINS" ]; then
+      CORS_ALLOWED_ORIGINS=$(grep 'SUB_STORE_CORS_ALLOWED_ORIGINS=' "$INIT_FILE" 2>/dev/null \
+        | sed 's/.*="\([^"]*\)".*/\1/')
+    fi
   else
     step "全新安装 Sub-Store"
   fi
@@ -132,6 +166,11 @@ do_install() {
     BACKEND_PATH="/$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20)"
     log "已生成安全路径: $BACKEND_PATH"
   fi
+
+  if [ -z "$CORS_ALLOWED_ORIGINS" ]; then
+    CORS_ALLOWED_ORIGINS=$(build_cors_origins)
+  fi
+  log "CORS 来源白名单已配置"
 
   # ---- 1. 安装依赖 ----
   step "1. 安装依赖"
@@ -194,6 +233,7 @@ export SUB_STORE_FRONTEND_PORT="${FRONTEND_PORT}"
 export SUB_STORE_DATA_BASE_PATH="${INSTALL_DIR}"
 export SUB_STORE_BACKEND_API_HOST="127.0.0.1"
 export SUB_STORE_BACKEND_API_PORT="${BACKEND_PORT}"
+export SUB_STORE_CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS}"
 
 depend() {
     need net

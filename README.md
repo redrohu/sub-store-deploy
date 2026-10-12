@@ -7,6 +7,7 @@
 - 支持 amd64 / arm64 架构
 - 前端反代后端，后端不对外暴露
 - 随机安全路径作为鉴权，无需额外配置 Token
+- 自动配置新版后端所需的 CORS 来源白名单
 - 支持一键安装、更新、卸载
 - 安装后注册全局 `sub-store` 命令
 
@@ -101,6 +102,8 @@ sub-store uninstall
 export FRONTEND_PORT=3001           # 前端端口（默认 3001）
 export BACKEND_PORT=3000            # 后端端口（默认 3000）
 export SUB_STORE_BACKEND_PATH="/自定义路径"  # 安全路径（默认随机生成）
+# 可选：手动指定 CORS 来源，多个来源用英文逗号分隔
+export SUB_STORE_CORS_ALLOWED_ORIGINS="http://192.168.1.20:3001"
 sh install-sub-store.sh
 ```
 
@@ -166,6 +169,21 @@ rc-service substore start
 ```
 
 **无法连接后端**
+
+如果是在执行 `sub-store update` 后开始出现 `403`，通常是新版后端启用了
+CORS 来源校验。请使用修复后的脚本重新执行一次安装/更新，让脚本把当前访问地址
+写入白名单：
+
+```sh
+sh install-sub-store.sh
+```
+
+如果通过域名或 HTTPS 反向代理访问，请显式指定来源：
+
+```sh
+export SUB_STORE_CORS_ALLOWED_ORIGINS="http://192.168.1.20:3001,https://sub.example.com"
+sh install-sub-store.sh
+```
 
 确认服务正在运行：
 ```sh
